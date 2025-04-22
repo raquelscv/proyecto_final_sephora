@@ -172,14 +172,13 @@ def scrapeo_producto(driver, product_url, productos_por_filtro):
     return producto_info
 
 def scrapeo_sephora(url, archivo_salida):
-    palabras_clave = ["formats", "responsibleBeauty", "eyeshadowEffects", "lipEffects", "mascaraEffects", "typesHairBrushes", "formulations", "skinTypes", "covers", "finishes", "texture"]
+    palabras_clave = ["formats", "responsibleBeauty", "eyeshadowEffects", "lipEffects", "mascaraEffects", "formulations", "skinTypes", "covers", "finishes", "texture"]
     mapa_filtros = {
         "formats": "formato",
         "responsibleBeauty": "responsabilidad",
         "eyeshadowEffects": "efecto_sombra",
         "lipEffects": "efecto_labios",
         "mascaraEffects": "efecto_mascara",
-        "typesHairBrushes": "tipo_brocha",
         "formulations": "formulacion",
         "skinTypes": "tipo_piel",
         "covers": "cobertura",

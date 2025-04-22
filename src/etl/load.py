@@ -1,121 +1,137 @@
-# codigo completo de insercion y actualizacion de datos tras los scrapeos
-
 import pandas as pd
 import psycopg2
-import numpy as np
 
-# Conexión
-conn = psycopg2.connect(
-    dbname="prueba_sephora",
-    user="postgres",
-    password="admin",
-    host="localhost",
-    port="5432"
-)
-cur = conn.cursor()
+def conectar_bd(nombre_db, usuario, contraseña, servidor, puerto):
+    conn = psycopg2.connect(
+        dbname=nombre_db,
+        user=usuario,
+        password=contraseña,
+        host=servidor,
+        port=puerto
+    )
+    return conn, conn.cursor()
 
-# Leer CSV
-df = pd.read_csv("productos_maquillaje.csv")
-pd.set_option('display.max_columns', None)
+def insertar_historico(cur, id_producto, fecha_extraccion, precio, numero_valoraciones, valoracion, num_variaciones):
+    cur.execute("""
+        INSERT INTO historico (id_producto, fecha_extraccion, precio, numero_valoraciones, valoracion, numero_variaciones)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (id_producto, fecha_extraccion, precio, numero_valoraciones, valoracion, num_variaciones))
 
-for _, row in df.iterrows():
-    nombre = row['nombre']
-    descripcion = row['descripcion']
-    marca = row['marca']
-    categoria = row['categoria']
-    subcategoria = row['subcategoria']
-    precio = row['precio']
-    numero_valoraciones = row['numero_valoraciones']
-    num_variaciones = row['num_variaciones']
-    valoracion = row['valoracion']
-    fecha_extraccion = row['fecha_extraccion']
+def obtener_id(cur, tabla, columna, valor):
+    columnas_id = {
+        'marcas': 'id_marca',
+        'categorias': 'id_categoria',
+        'subcategorias': 'id_subcategoria',
+        'efectos_sombra': 'id_efecto_sombra',
+        'texturas': 'id_textura',
+        'formatos': 'id_formato',
+        'responsabilidades': 'id_responsabilidad',
+        'efectos_labios': 'id_efecto_labios',
+        'efectos_mascara': 'id_efecto_mascara',
+        'formulaciones': 'id_formulacion',
+        'tipos_piel': 'id_tipo_piel',
+        'coberturas': 'id_cobertura',
+        'acabados': 'id_acabado'
+    }
     
-    efecto_sombra = row.get('efecto_sombra')
-    textura = row.get('textura')
+    columna_id = columnas_id.get(tabla)
+    
+    if not columna_id:
+        raise ValueError(f"No se ha definido columna 'id' para la tabla {tabla}")
 
-    # 1. ¿Existe el producto?
-    cur.execute("SELECT id_producto FROM productos WHERE nombre = %s", (nombre,))
-    producto_result = cur.fetchone()
+    print(f"Ejecutando consulta: SELECT {columna_id} FROM {tabla} WHERE {columna} = {valor}")
+    cur.execute(f"SELECT {columna_id} FROM {tabla} WHERE {columna} = %s", (valor,))
+    return cur.fetchone()
 
-    if producto_result:
-        id_producto = producto_result[0]
-        # Solo insertar histórico
-        cur.execute("""
-            INSERT INTO historico (id_producto, fecha_extraccion, precio, numero_valoraciones, valoracion, numero_variaciones)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (id_producto, fecha_extraccion, precio, numero_valoraciones, valoracion, num_variaciones))
-        print(f"Histórico actualizado para producto existente: {nombre}")
-    else:
-        # 2. Insertar Marca si no existe
-        cur.execute("SELECT id_marca FROM marcas WHERE nombre_marca = %s", (marca,))
-        marca_result = cur.fetchone()
-        if marca_result:
-            id_marca = marca_result[0]
+def insertar_categoria_subcategoria_marca(cur, marca, categoria, subcategoria):
+    id_marca = obtener_id(cur, "marcas", "nombre_marca", marca)
+    if not id_marca:
+        cur.execute("INSERT INTO marcas (nombre_marca) VALUES (%s) RETURNING id_marca", (marca,))
+        id_marca = cur.fetchone()[0]
+
+    id_categoria = obtener_id(cur, "categorias", "nombre_categoria", categoria)
+    if not id_categoria:
+        cur.execute("INSERT INTO categorias (nombre_categoria) VALUES (%s) RETURNING id_categoria", (categoria,))
+        id_categoria = cur.fetchone()[0]
+
+    id_subcategoria = obtener_id(cur, "subcategorias", "nombre_subcategoria", subcategoria)
+    if not id_subcategoria:
+        cur.execute("INSERT INTO subcategorias (nombre_subcategoria) VALUES (%s) RETURNING id_subcategoria", (subcategoria,))
+        id_subcategoria = cur.fetchone()[0]
+
+    return id_marca, id_categoria, id_subcategoria
+
+def insertar_producto(cur, nombre, descripcion, id_marca, id_categoria, id_subcategoria):
+    cur.execute("""
+        INSERT INTO productos (nombre, descripcion, id_marca, id_categoria, id_subcategoria)
+        VALUES (%s, %s, %s, %s, %s) RETURNING id_producto
+    """, (nombre, descripcion, id_marca, id_categoria, id_subcategoria))
+    return cur.fetchone()[0]
+
+def insertar_filtro(cur, filtro, tabla, producto_id, relacion_tabla):
+    if pd.notna(filtro):
+        filtros = [f.strip() for f in filtro.split(",")]
+        for f in filtros:
+            try:
+                id_filtro = obtener_id(cur, tabla, f"nombre_{tabla}", f)
+                if not id_filtro:  # Si no existe, insertamos
+                    cur.execute(f"INSERT INTO {tabla} (nombre_{tabla}) VALUES (%s) RETURNING id_{tabla}", (f,))
+                    id_filtro = cur.fetchone()[0]
+                if id_filtro:  # Asegurarse de que id_filtro no sea None
+                    cur.execute(f"INSERT INTO producto_{relacion_tabla} (id_producto, id_{tabla}) VALUES (%s, %s)", (producto_id, id_filtro))
+            except Exception as e:
+                print(f"Error al insertar filtro {f} para producto {producto_id}: {e}")
+                continue
+
+def procesar_productos(df, cur):
+    filtros = [
+        ('efecto_sombra', 'efecto_sombra'),
+        ('textura', 'textura'),
+        ('formato', 'formato'),
+        ('responsabilidad', 'responsabilidad'),
+        ('efecto_labios', 'efecto_labios'),
+        ('efecto_mascara', 'efecto_mascara'),
+        ('formulacion', 'formulacion'),
+        ('tipo_piel', 'tipo_piel'),
+        ('cobertura', 'cobertura'),
+        ('acabado', 'acabado')
+    ]
+
+    for _, row in df.iterrows():
+        nombre = row['nombre']
+        descripcion = row['descripcion']
+        marca = row['marca']
+        categoria = row['categoria']
+        subcategoria = row['subcategoria']
+        precio = row['precio']
+        numero_valoraciones = row['numero_valoraciones']
+        num_variaciones = row['num_variaciones']
+        valoracion = row['valoracion']
+        fecha_extraccion = row['fecha_extraccion']
+
+        cur.execute("SELECT id_producto FROM productos WHERE nombre = %s", (nombre,))
+        producto_result = cur.fetchone()
+
+        if producto_result:
+            id_producto = producto_result[0]
+            insertar_historico(cur, id_producto, fecha_extraccion, precio, numero_valoraciones, valoracion, num_variaciones)
+            print(f"Histórico actualizado para producto existente: {nombre}")
         else:
-            cur.execute("INSERT INTO marcas (nombre_marca) VALUES (%s) RETURNING id_marca", (marca,))
-            id_marca = cur.fetchone()[0]
+            id_marca, id_categoria, id_subcategoria = insertar_categoria_subcategoria_marca(cur, marca, categoria, subcategoria)
+            id_producto = insertar_producto(cur, nombre, descripcion, id_marca, id_categoria, id_subcategoria)
+            insertar_historico(cur, id_producto, fecha_extraccion, precio, numero_valoraciones, valoracion, num_variaciones)
 
-        # 3. Insertar Categoría si no existe
-        cur.execute("SELECT id_categoria FROM categorias WHERE nombre_categoria = %s", (categoria,))
-        categoria_result = cur.fetchone()
-        if categoria_result:
-            id_categoria = categoria_result[0]
-        else:
-            cur.execute("INSERT INTO categorias (nombre_categoria) VALUES (%s) RETURNING id_categoria", (categoria,))
-            id_categoria = cur.fetchone()[0]
+            for filtro, tabla in filtros:
+                insertar_filtro(cur, row.get(filtro), tabla, id_producto, filtro)
 
-        # 4. Insertar Subcategoría si no existe
-        cur.execute("SELECT id_subcategoria FROM subcategorias WHERE nombre_subcategoria = %s", (subcategoria,))
-        subcategoria_result = cur.fetchone()
-        if subcategoria_result:
-            id_subcategoria = subcategoria_result[0]
-        else:
-            cur.execute("INSERT INTO subcategorias (nombre_subcategoria) VALUES (%s) RETURNING id_subcategoria", (subcategoria,))
-            id_subcategoria = cur.fetchone()[0]
+            print(f"Producto nuevo insertado: {nombre}")
 
-        # 5. Insertar Producto
-        cur.execute("""
-            INSERT INTO productos (nombre, descripcion, id_marca, id_categoria, id_subcategoria)
-            VALUES (%s, %s, %s, %s, %s) RETURNING id_producto
-        """, (nombre, descripcion, id_marca, id_categoria, id_subcategoria))
-        id_producto = cur.fetchone()[0]
+def cargar_datos_sephora(df, nombre_db, usuario, contraseña, servidor, puerto):
+    conn, cur = conectar_bd(nombre_db, usuario, contraseña, servidor, puerto)
 
-        # 6. Insertar Histórico
-        cur.execute("""
-            INSERT INTO historico (id_producto, fecha_extraccion, precio, numero_valoraciones, valoracion, numero_variaciones)
-            VALUES (%s, %s, %s, %s, %s, %s)
-        """, (id_producto, fecha_extraccion, precio, numero_valoraciones, valoracion, num_variaciones))
-        
-        # 7. Insertar Filtros si existen
-        # Efecto sombra
-        if pd.notna(efecto_sombra):
-            efectos = [e.strip() for e in efecto_sombra.split(",")]
-            for efecto in efectos:
-                cur.execute("SELECT id_efecto_sombra FROM efectos_sombra WHERE nombre_efecto = %s", (efecto,))
-                efecto_result = cur.fetchone()
-                if not efecto_result:
-                    cur.execute("INSERT INTO efectos_sombra (nombre_efecto) VALUES (%s) RETURNING id_efecto_sombra", (efecto,))
-                    id_efecto = cur.fetchone()[0]
-                else:
-                    id_efecto = efecto_result[0]
-                cur.execute("INSERT INTO producto_efecto_sombra (id_producto, id_efecto_sombra) VALUES (%s, %s)", (id_producto, id_efecto))
+    procesar_productos(df, cur)  
+    conn.commit()  
 
-        # Textura
-        if pd.notna(textura):
-            cur.execute("SELECT id_textura FROM texturas WHERE nombre_textura = %s", (textura,))
-            textura_result = cur.fetchone()
-            if not textura_result:
-                cur.execute("INSERT INTO texturas (nombre_textura) VALUES (%s) RETURNING id_textura", (textura,))
-                id_textura = cur.fetchone()[0]
-            else:
-                id_textura = textura_result[0]
-            cur.execute("INSERT INTO producto_textura (id_producto, id_textura) VALUES (%s, %s)", (id_producto, id_textura))
-
-        print(f"Producto nuevo insertado: {nombre}")
-
-    conn.commit()
-
-# Cerrar conexión
-cur.close()
-conn.close()
-print("Proceso finalizado ✅")
+    cur.close()
+    conn.close()
+    print("Proceso finalizado ✅")
