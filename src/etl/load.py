@@ -17,49 +17,18 @@ def insertar_historico(cur, id_producto, fecha_extraccion, precio, numero_valora
         VALUES (%s, %s, %s, %s, %s, %s)
     """, (id_producto, fecha_extraccion, precio, numero_valoraciones, valoracion, num_variaciones))
 
-def obtener_id(cur, tabla, columna, valor):
-    columnas_id = {
-        'marcas': 'id_marca',
-        'categorias': 'id_categoria',
-        'subcategorias': 'id_subcategoria',
-        'efectos_sombra': 'id_efecto_sombra',
-        'texturas': 'id_textura',
-        'formatos': 'id_formato',
-        'responsabilidades': 'id_responsabilidad',
-        'efectos_labios': 'id_efecto_labios',
-        'efectos_mascara': 'id_efecto_mascara',
-        'formulaciones': 'id_formulacion',
-        'tipos_piel': 'id_tipo_piel',
-        'coberturas': 'id_cobertura',
-        'acabados': 'id_acabado'
-    }
+def obtener_o_insertar_id(cur, id_col, tabla, columna, valor):
+    cur.execute(f"SELECT {id_col} FROM {tabla} WHERE {columna} = %s", (valor,))
+    resultado = cur.fetchone()
     
-    columna_id = columnas_id.get(tabla)
-    
-    if not columna_id:
-        raise ValueError(f"No se ha definido columna 'id' para la tabla {tabla}")
-
-    print(f"Ejecutando consulta: SELECT {columna_id} FROM {tabla} WHERE {columna} = {valor}")
-    cur.execute(f"SELECT {columna_id} FROM {tabla} WHERE {columna} = %s", (valor,))
-    return cur.fetchone()
-
-def insertar_categoria_subcategoria_marca(cur, marca, categoria, subcategoria):
-    id_marca = obtener_id(cur, "marcas", "nombre_marca", marca)
-    if not id_marca:
-        cur.execute("INSERT INTO marcas (nombre_marca) VALUES (%s) RETURNING id_marca", (marca,))
-        id_marca = cur.fetchone()[0]
-
-    id_categoria = obtener_id(cur, "categorias", "nombre_categoria", categoria)
-    if not id_categoria:
-        cur.execute("INSERT INTO categorias (nombre_categoria) VALUES (%s) RETURNING id_categoria", (categoria,))
-        id_categoria = cur.fetchone()[0]
-
-    id_subcategoria = obtener_id(cur, "subcategorias", "nombre_subcategoria", subcategoria)
-    if not id_subcategoria:
-        cur.execute("INSERT INTO subcategorias (nombre_subcategoria) VALUES (%s) RETURNING id_subcategoria", (subcategoria,))
-        id_subcategoria = cur.fetchone()[0]
-
-    return id_marca, id_categoria, id_subcategoria
+    if resultado:
+        return resultado[0]
+    else:
+        cur.execute(
+            f"INSERT INTO {tabla} ({columna}) VALUES (%s) RETURNING {id_col}",
+            (valor,)
+        )
+        return cur.fetchone()[0]
 
 def insertar_producto(cur, nombre, descripcion, id_marca, id_categoria, id_subcategoria):
     cur.execute("""
@@ -68,34 +37,22 @@ def insertar_producto(cur, nombre, descripcion, id_marca, id_categoria, id_subca
     """, (nombre, descripcion, id_marca, id_categoria, id_subcategoria))
     return cur.fetchone()[0]
 
-def insertar_filtro(cur, filtro, tabla, producto_id, relacion_tabla):
-    if pd.notna(filtro):
-        filtros = [f.strip() for f in filtro.split(",")]
-        for f in filtros:
-            try:
-                id_filtro = obtener_id(cur, tabla, f"nombre_{tabla}", f)
-                if not id_filtro:  # Si no existe, insertamos
-                    cur.execute(f"INSERT INTO {tabla} (nombre_{tabla}) VALUES (%s) RETURNING id_{tabla}", (f,))
-                    id_filtro = cur.fetchone()[0]
-                if id_filtro:  # Asegurarse de que id_filtro no sea None
-                    cur.execute(f"INSERT INTO producto_{relacion_tabla} (id_producto, id_{tabla}) VALUES (%s, %s)", (producto_id, id_filtro))
-            except Exception as e:
-                print(f"Error al insertar filtro {f} para producto {producto_id}: {e}")
-                continue
+def insertar_filtro(cur, columna, id_col, tabla, nombre_col, id_producto, tabla_intermedia):
+    if pd.notna(columna):
+        filtros = [v.strip() for v in columna.split(",")]
+        for v in filtros:
+            cur.execute(f"SELECT {id_col} FROM {tabla} WHERE {nombre_col} = %s", (v,))
+            resultado = cur.fetchone()
+
+            if resultado:
+                id_filtro = resultado[0]
+            else:
+                cur.execute(f"INSERT INTO {tabla} ({nombre_col}) VALUES (%s) RETURNING {id_col}", (v,))
+                id_filtro = cur.fetchone()[0]
+
+            cur.execute(f"INSERT INTO {tabla_intermedia} (id_producto, {id_col}) VALUES (%s, %s)", (id_producto, id_filtro))
 
 def procesar_productos(df, cur):
-    filtros = [
-        ('efecto_sombra', 'efecto_sombra'),
-        ('textura', 'textura'),
-        ('formato', 'formato'),
-        ('responsabilidad', 'responsabilidad'),
-        ('efecto_labios', 'efecto_labios'),
-        ('efecto_mascara', 'efecto_mascara'),
-        ('formulacion', 'formulacion'),
-        ('tipo_piel', 'tipo_piel'),
-        ('cobertura', 'cobertura'),
-        ('acabado', 'acabado')
-    ]
 
     for _, row in df.iterrows():
         nombre = row['nombre']
@@ -108,6 +65,16 @@ def procesar_productos(df, cur):
         num_variaciones = row['num_variaciones']
         valoracion = row['valoracion']
         fecha_extraccion = row['fecha_extraccion']
+        efecto_sombra = row.get('efecto_sombra')
+        textura = row.get('textura')
+        formato = row.get('formato')
+        responsabilidad = row.get('responsabilidad')
+        efecto_labios = row.get('efecto_labios')
+        efecto_mascara = row.get('efecto_mascara')
+        formulacion = row.get('formulacion')
+        tipo_piel = row.get('tipo_piel')
+        cobertura = row.get('cobertura')
+        acabado = row.get('acabado')
 
         cur.execute("SELECT id_producto FROM productos WHERE nombre = %s", (nombre,))
         producto_result = cur.fetchone()
@@ -117,14 +84,21 @@ def procesar_productos(df, cur):
             insertar_historico(cur, id_producto, fecha_extraccion, precio, numero_valoraciones, valoracion, num_variaciones)
             print(f"Histórico actualizado para producto existente: {nombre}")
         else:
-            id_marca, id_categoria, id_subcategoria = insertar_categoria_subcategoria_marca(cur, marca, categoria, subcategoria)
+            id_marca = obtener_o_insertar_id(cur, "id_marca", "marcas", "nombre_marca", marca)
+            id_categoria = obtener_o_insertar_id(cur, "id_categoria", "categorias", "nombre_categoria", categoria)
+            id_subcategoria = obtener_o_insertar_id(cur, "id_subcategoria", "subcategorias", "nombre_subcategoria", subcategoria)
             id_producto = insertar_producto(cur, nombre, descripcion, id_marca, id_categoria, id_subcategoria)
             insertar_historico(cur, id_producto, fecha_extraccion, precio, numero_valoraciones, valoracion, num_variaciones)
-
-            for filtro, tabla in filtros:
-                insertar_filtro(cur, row.get(filtro), tabla, id_producto, filtro)
-
-            print(f"Producto nuevo insertado: {nombre}")
+            insertar_filtro(cur, efecto_labios, "id_efecto_labios","efectos_labios", "nombre_efecto", id_producto, "producto_efecto_labios")
+            insertar_filtro(cur, efecto_sombra, "id_efecto_sombra", "efectos_sombra", "nombre_efecto", id_producto, "producto_efecto_sombra")
+            insertar_filtro(cur, textura, "id_textura", "texturas", "nombre_textura", id_producto, "producto_textura")
+            insertar_filtro(cur, formato, "id_formato", "formatos", "nombre_formato", id_producto, "producto_formato")  
+            insertar_filtro(cur, responsabilidad, "id_responsabilidad", "responsabilidades", "nombre_responsabilidad", id_producto, "producto_responsabilidad")
+            insertar_filtro(cur, efecto_mascara, "id_efecto_mascara", "efectos_mascara", "nombre_efecto", id_producto, "producto_efecto_mascara")
+            insertar_filtro(cur, formulacion, "id_formulacion", "formulaciones", "nombre_formulacion", id_producto, "producto_formulacion")
+            insertar_filtro(cur, tipo_piel, "id_tipo_piel", "tipos_piel", "nombre_tipo_piel", id_producto, "producto_tipo_piel")
+            insertar_filtro(cur, cobertura, "id_cobertura", "coberturas", "nombre_cobertura", id_producto, "producto_cobertura")    
+            insertar_filtro(cur, acabado, "id_acabado", "acabados", "nombre_acabado", id_producto, "producto_acabado")
 
 def cargar_datos_sephora(df, nombre_db, usuario, contraseña, servidor, puerto):
     conn, cur = conectar_bd(nombre_db, usuario, contraseña, servidor, puerto)
