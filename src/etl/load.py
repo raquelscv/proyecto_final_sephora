@@ -53,14 +53,13 @@ def insertar_filtro(cur, columna, id_col, tabla, nombre_col, id_producto, tabla_
             cur.execute(f"INSERT INTO {tabla_intermedia} (id_producto, {id_col}) VALUES (%s, %s)", (id_producto, id_filtro))
 
 def procesar_productos(df, cur):
-
     for _, row in df.iterrows():
-        nombre = row['nombre']
-        descripcion = row['descripcion']
+        nombre = row['nombre'] if pd.notna(row['nombre']) else None
+        descripcion = row['descripcion'] if pd.notna(row['descripcion']) else None
         marca = row['marca']
         categoria = row['categoria']
         subcategoria = row['subcategoria']
-        precio = row['precio']
+        precio = row['precio'] if pd.notna(row['precio']) else None
         numero_valoraciones = row['numero_valoraciones']
         num_variaciones = row['num_variaciones']
         valoracion = row['valoracion']
@@ -84,12 +83,12 @@ def procesar_productos(df, cur):
             insertar_historico(cur, id_producto, fecha_extraccion, precio, numero_valoraciones, valoracion, num_variaciones)
             print(f"Histórico actualizado para producto existente: {nombre}")
         else:
-            id_marca = obtener_o_insertar_id(cur, "id_marca", "marcas", "nombre_marca", marca)
-            id_categoria = obtener_o_insertar_id(cur, "id_categoria", "categorias", "nombre_categoria", categoria)
-            id_subcategoria = obtener_o_insertar_id(cur, "id_subcategoria", "subcategorias", "nombre_subcategoria", subcategoria)
+            id_marca = obtener_o_insertar_id(cur, "id_marca", "marcas", "nombre_marca", marca) if pd.notna(marca) else None
+            id_categoria = obtener_o_insertar_id(cur, "id_categoria", "categorias", "nombre_categoria", categoria) if pd.notna(categoria) else None
+            id_subcategoria = obtener_o_insertar_id(cur, "id_subcategoria", "subcategorias", "nombre_subcategoria", subcategoria) if pd.notna(subcategoria) else None
             id_producto = insertar_producto(cur, nombre, descripcion, id_marca, id_categoria, id_subcategoria)
             insertar_historico(cur, id_producto, fecha_extraccion, precio, numero_valoraciones, valoracion, num_variaciones)
-            insertar_filtro(cur, efecto_labios, "id_efecto_labios","efectos_labios", "nombre_efecto", id_producto, "producto_efecto_labios")
+            insertar_filtro(cur, efecto_labios, "id_efecto_labios", "efectos_labios", "nombre_efecto", id_producto, "producto_efecto_labios")
             insertar_filtro(cur, efecto_sombra, "id_efecto_sombra", "efectos_sombra", "nombre_efecto", id_producto, "producto_efecto_sombra")
             insertar_filtro(cur, textura, "id_textura", "texturas", "nombre_textura", id_producto, "producto_textura")
             insertar_filtro(cur, formato, "id_formato", "formatos", "nombre_formato", id_producto, "producto_formato")  

@@ -1,7 +1,7 @@
 import os 
 from dotenv import load_dotenv
-from .extract_transf import scrapeo_sephora
-from .load import cargar_datos_sephora
+from src.etl.extract_transf import scrapeo_sephora
+from src.etl.load import cargar_datos_sephora
 
 load_dotenv()
 ARCHIVO_SALIDA = os.getenv("ARCHIVO_SALIDA")
@@ -20,7 +20,7 @@ def extraccion_transf_carga(archivo_salida, url, nombre_db, usuario, contraseña
             raise Exception(f"Error en la extracción y transformación de datos: {e}")
 
         try:
-            cargar_datos_sephora(nombre_db, usuario, contraseña, servidor, puerto, df)
+            cargar_datos_sephora(df, nombre_db, usuario, contraseña, servidor, puerto)
         except Exception as e:
             raise Exception(f"Error en la creación de tablas y carga de datos en la base de datos: {e}")
 

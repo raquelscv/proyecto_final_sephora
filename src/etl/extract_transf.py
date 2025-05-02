@@ -113,15 +113,42 @@ def scrapeo_producto(driver, product_url, productos_por_filtro):
     except:
         print(f"⚠️ No se pudo obtener breadcrumb del producto: {product_url}")
         return None
+    
+    try:
+        producto_info["categoria"] = breadcrumb_elements[2].text.strip()
+    except:
+        producto_info["categoria"] = np.nan
 
-    producto_info["categoria"] = breadcrumb_elements[2].text.strip()
-    producto_info["subcategoria"] = breadcrumb_elements[3].text.strip() if len(breadcrumb_elements) > 3 else np.nan
-    producto_info["marca"] = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CLASS_NAME, "brand-name"))).text
+    try:
+        producto_info["subcategoria"] = breadcrumb_elements[3].text.strip()
+    except:
+        producto_info["subcategoria"] = np.nan
 
-    titulo = WebDriverWait(driver, 20).until(EC.presence_of_all_elements_located((By.CLASS_NAME, "product-name.product-name-bold")))[0].text
-    nombre, descripcion = titulo.split(" - ") if " - " in titulo else (titulo, np.nan)
-    producto_info["nombre"] = nombre
-    producto_info["descripcion"] = descripcion
+    try:
+        producto_info["marca"] = WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "brand-name"))).text
+    except:
+        producto_info["marca"] = np.nan
+
+    try:
+        titulo = WebDriverWait(driver, 20).until(
+            EC.presence_of_all_elements_located((By.CLASS_NAME, "product-name.product-name-bold"))
+        )[0].text.strip().replace("\n", " ")
+
+        if " - " in titulo:
+            partes = titulo.split(" - ", 1)
+            nombre = partes[0].strip()
+            descripcion = partes[1].strip()
+        else:
+            nombre = titulo
+            descripcion = np.nan
+
+        producto_info["nombre"] = nombre
+        producto_info["descripcion"] = descripcion
+
+    except Exception as e:
+        print(f"⚠️ Error extrayendo título del producto: {e}")
+        return None
 
     try:
         precio = WebDriverWait(driver, 20).until(
@@ -162,12 +189,15 @@ def scrapeo_producto(driver, product_url, productos_por_filtro):
 
     producto_info["fecha_extraccion"] = pd.to_datetime(date.today())
 
-    for columna, filtros in productos_por_filtro.items():
-        valores_detectados = []
-        for filtro in filtros:
-            if product_url in filtro["productos"]:
-                valores_detectados.append(filtro["valor"])
-        producto_info[columna] = ", ".join(valores_detectados) if valores_detectados else None
+    try: 
+        for columna, filtros in productos_por_filtro.items():
+            valores_detectados = []
+            for filtro in filtros:
+                if product_url in filtro["productos"]:
+                    valores_detectados.append(filtro["valor"])
+            producto_info[columna] = ", ".join(valores_detectados) if valores_detectados else None
+    except Exception as e:
+        print(f"⚠️ Error procesando filtros personalizados: {e}")
 
     return producto_info
 
