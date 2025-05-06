@@ -99,7 +99,7 @@ def scrapeo_filtros(driver, filtros_urls, mapa_filtros):
 
     return productos_por_filtro
 
-def scrapeo_producto(driver, product_url, productos_por_filtro):
+def scrapeo_producto(driver, product_url, productos_por_filtro, fecha_extraccion):
     producto_info = {}
     driver.get(product_url)
 
@@ -152,10 +152,15 @@ def scrapeo_producto(driver, product_url, productos_por_filtro):
 
     try:
         precio = WebDriverWait(driver, 20).until(
-            EC.presence_of_all_elements_located((By.CLASS_NAME, "price-sales.price-sales-standard")))[0].text
+                EC.presence_of_all_elements_located((By.CLASS_NAME, "price-sales.price-sales-standard")))[0].text
         producto_info["precio"] = float(precio.replace(" €", "").replace(",", "."))
     except:
-        producto_info["precio"] = np.nan
+        try: 
+            precio = WebDriverWait(driver, 20).until(
+                EC.presence_of_all_elements_located((By.CLASS_NAME, "price-sales")))[0].text
+            producto_info["precio"] = float(precio.replace(" €", "").replace(",", "."))
+        except:
+            producto_info["precio"] = np.nan
 
     try:
         n_val = WebDriverWait(driver, 40).until(EC.presence_of_element_located((By.CLASS_NAME, "bv-number-review"))).get_attribute('innerHTML').strip().split(' ')[0]
@@ -190,7 +195,7 @@ def scrapeo_producto(driver, product_url, productos_por_filtro):
         pass
     producto_info["num_variaciones"] = variaciones
 
-    producto_info["fecha_extraccion"] = pd.to_datetime(date.today())
+    producto_info["fecha_extraccion"] = fecha_extraccion
 
     producto_info["url_producto"] = product_url
 
@@ -221,6 +226,8 @@ def scrapeo_sephora(url, archivo_salida):
         "texture": "textura"
     }
 
+    fecha_extraccion = pd.to_datetime(date.today())
+
     driver = iniciar_driver()
     driver.get(url)
     cargar_todos_los_productos(driver)
@@ -242,7 +249,7 @@ def scrapeo_sephora(url, archivo_salida):
     driver = iniciar_driver()
     for idx, product_url in enumerate(productos_urls):
         print(f"📦 Procesando producto {idx+1} de {len(productos_urls)}: {product_url}")
-        info = scrapeo_producto(driver, product_url, productos_por_filtro)
+        info = scrapeo_producto(driver, product_url, productos_por_filtro, fecha_extraccion)
         if info:
             list_scrap.append(info)
     driver.quit()
