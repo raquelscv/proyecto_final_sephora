@@ -158,8 +158,11 @@ def scrapeo_producto(driver, product_url, productos_por_filtro):
         producto_info["precio"] = np.nan
 
     try:
-        n_val = WebDriverWait(driver, 40).until(
-            EC.presence_of_element_located((By.CLASS_NAME, "bv-number-review"))).get_attribute('innerHTML').strip().split(' ')[0]
+        n_val = WebDriverWait(driver, 40).until(EC.presence_of_element_located((By.CLASS_NAME, "bv-number-review"))).get_attribute('innerHTML').strip().split(' ')[0]
+    
+        if '.' in n_val:
+            n_val = n_val.replace('.', '')
+    
         producto_info["numero_valoraciones"] = int(n_val)
     except:
         producto_info["numero_valoraciones"] = 0
@@ -188,6 +191,8 @@ def scrapeo_producto(driver, product_url, productos_por_filtro):
     producto_info["num_variaciones"] = variaciones
 
     producto_info["fecha_extraccion"] = pd.to_datetime(date.today())
+
+    producto_info["url_producto"] = product_url
 
     try: 
         for columna, filtros in productos_por_filtro.items():

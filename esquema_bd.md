@@ -12,6 +12,7 @@ CREATE TABLE subcategorias (
 );
 CREATE TABLE productos (
     id_producto SERIAL PRIMARY KEY,
+    url_producto TEXT,
     nombre TEXT,
     descripcion TEXT,
     id_marca INT REFERENCES marcas(id_marca) ON DELETE CASCADE,

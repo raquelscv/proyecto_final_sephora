@@ -30,11 +30,11 @@ def obtener_o_insertar_id(cur, id_col, tabla, columna, valor):
         )
         return cur.fetchone()[0]
 
-def insertar_producto(cur, nombre, descripcion, id_marca, id_categoria, id_subcategoria):
+def insertar_producto(cur, url_producto, nombre, descripcion, id_marca, id_categoria, id_subcategoria):
     cur.execute("""
-        INSERT INTO productos (nombre, descripcion, id_marca, id_categoria, id_subcategoria)
+        INSERT INTO productos (url_producto, nombre, descripcion, id_marca, id_categoria, id_subcategoria)
         VALUES (%s, %s, %s, %s, %s) RETURNING id_producto
-    """, (nombre, descripcion, id_marca, id_categoria, id_subcategoria))
+    """, (url_producto, nombre, descripcion, id_marca, id_categoria, id_subcategoria))
     return cur.fetchone()[0]
 
 def insertar_filtro(cur, columna, id_col, tabla, nombre_col, id_producto, tabla_intermedia):
@@ -74,8 +74,9 @@ def procesar_productos(df, cur):
         tipo_piel = row.get('tipo_piel')
         cobertura = row.get('cobertura')
         acabado = row.get('acabado')
+        url_producto = row['url_producto']
 
-        cur.execute("SELECT id_producto FROM productos WHERE nombre = %s", (nombre,))
+        cur.execute("SELECT id_producto FROM productos WHERE url_producto = %s", (url_producto,))
         producto_result = cur.fetchone()
 
         if producto_result:
@@ -86,7 +87,7 @@ def procesar_productos(df, cur):
             id_marca = obtener_o_insertar_id(cur, "id_marca", "marcas", "nombre_marca", marca) if pd.notna(marca) else None
             id_categoria = obtener_o_insertar_id(cur, "id_categoria", "categorias", "nombre_categoria", categoria) if pd.notna(categoria) else None
             id_subcategoria = obtener_o_insertar_id(cur, "id_subcategoria", "subcategorias", "nombre_subcategoria", subcategoria) if pd.notna(subcategoria) else None
-            id_producto = insertar_producto(cur, nombre, descripcion, id_marca, id_categoria, id_subcategoria)
+            id_producto = insertar_producto(cur, url_producto, nombre, descripcion, id_marca, id_categoria, id_subcategoria)
             insertar_historico(cur, id_producto, fecha_extraccion, precio, numero_valoraciones, valoracion, num_variaciones)
             insertar_filtro(cur, efecto_labios, "id_efecto_labios", "efectos_labios", "nombre_efecto", id_producto, "producto_efecto_labios")
             insertar_filtro(cur, efecto_sombra, "id_efecto_sombra", "efectos_sombra", "nombre_efecto", id_producto, "producto_efecto_sombra")
