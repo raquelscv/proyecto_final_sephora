@@ -33,7 +33,7 @@ def obtener_o_insertar_id(cur, id_col, tabla, columna, valor):
 def insertar_producto(cur, url_producto, nombre, descripcion, id_marca, id_categoria, id_subcategoria):
     cur.execute("""
         INSERT INTO productos (url_producto, nombre, descripcion, id_marca, id_categoria, id_subcategoria)
-        VALUES (%s, %s, %s, %s, %s) RETURNING id_producto
+        VALUES (%s, %s, %s, %s, %s, %s) RETURNING id_producto
     """, (url_producto, nombre, descripcion, id_marca, id_categoria, id_subcategoria))
     return cur.fetchone()[0]
 
