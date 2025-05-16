@@ -41,3 +41,4 @@ def info_reporte(dataframe):
     df_report["Tipo_dato"] = dataframe.dtypes
     return df_report
 
+rom src.eda.soporte_eda import *
