@@ -8,7 +8,7 @@ Finalmente, toda esta información se tradujo en un dashboard interactivo desarr
 ## 📂 Estructura del Proyecto
 
 ├── data/                          
-│   ├── productos_maquillaje.csv   # Dataset final extraído del sitio web de Sephora
+│   ├── productos_maquillaje.csv       # Dataset final extraído del sitio web de Sephora
 │  
 ├── documentacion/                 # Documentos PDF entregables del proyecto 
 │   ├── Definicion_Proyecto.pdf         
