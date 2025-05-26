@@ -23,12 +23,13 @@ src/etl/                            # Funciones de soporte para la ETL
   - init.py
   - main.py                         # Script central que orquesta el proceso ETL
 
-eda.ipynb                           # Análisis exploratorio de los datos
-Dashboard_Sephora.pbix              # Archivo Power BI con el dashboard final
-esquema_bd.md                       # Estructura de la base de datos
-requirements.txt                    # Dependencias del entorno Python
-.gitignore                          # Ignorar archivos innecesarios
-README.md                           # Descripción del proyecto
+Otros archivos en la raíz del repositorio: 
+- eda.ipynb                           # Análisis exploratorio de los datos
+- Dashboard_Sephora.pbix              # Archivo Power BI con el dashboard final
+- esquema_bd.md                       # Estructura de la base de datos
+- requirements.txt                    # Dependencias del entorno Python
+- .gitignore                          # Ignorar archivos innecesarios
+- README.md                           # Descripción del proyecto
 
 ## 💻 Instalación y Requisitos
 
