@@ -7,29 +7,28 @@ Finalmente, toda esta información se tradujo en un dashboard interactivo desarr
 
 ## 📂 Estructura del Proyecto
 
-├── data/
-│   └── productos_maquillaje.csv         # Dataset final extraído del sitio web de Sephora
-│
-├── documentacion/                       # Documentos PDF entregables del proyecto
-│   ├── Definicion_Proyecto.pdf
-│   ├── EDA_Proyecto.pdf
-│   ├── ETL_Proyecto.pdf
-│   ├── Dashboard_Proyecto.pdf
-│   └── Informe_Final.pdf
-│
-├── src/etl/                             # Scripts del proceso ETL
-│   ├── extract_transf.py                # Función principal de scraping y transformación
-│   ├── load.py                          # Carga de datos a base de datos PostgreSQL
-│   ├── init.py
-│   └── main.py                          # Script central que orquesta todo el proceso ETL
-│
-├── eda.ipynb                            # Análisis exploratorio de los datos
-├── Dashboard_Sephora.pbix              # Archivo Power BI con el dashboard final
-├── esquema_bd.md                        # Estructura de la base de datos utilizada
-├── requirements.txt                     # Dependencias del entorno Python
-├── .gitignore                           # Archivos y carpetas a excluir del repositorio
-├── README.md                            # Este archivo
-
+├── data/                          
+│   ├── productos_maquillaje.csv   # Dataset final extraído del sitio web de Sephora
+│  
+├── documentacion/                 # Documentos PDF entregables del proyecto 
+│   ├── Definicion_Proyecto.pdf         
+│   ├── EDA_Proyecto.pdf    
+│   ├── ETL_Proyecto.pdf         
+│   ├── Dashboard_Proyecto.pdf             
+│   ├── Informe_Final.pdf      
+│  
+├── src/etl/                       # Funciones de soporte para la ETL  
+│   ├── extract_transf.py          # Funciones para la extracción y transformación
+│   ├── load.py                    # Funciones para la carga en la base de datos
+│   ├── init.py 
+│   ├── main.py                    # Script central que orquesta todo el proceso ETL
+│ 
+├── eda.ipynb                      # Análisis exploratorio de los datos 
+├── Dashboard_Sephora.pbix         # Archivo Power BI con el dashboard final
+├── esquema_bd.md                  # Estructura de la base de datos utilizada
+├── requirements.txt               # Dependencias del entorno Python 
+├── .gitignore                     # Archivo para ignorar archivos innecesarios en el repositorio  
+├── README.md                      # Descripción del proyecto  
 
 ## 💻 Instalación y Requisitos
 
